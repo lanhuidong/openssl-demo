@@ -1,5 +1,6 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/rsa.h>
 
 #include <atomic>
 #include <barrier>
@@ -94,7 +95,91 @@ void Run() {
     std::vector<unsigned char> r_text = decrypt(key, iv, cipher_text);
 }
 
+EVP_PKEY* rsa_key;
+
+void GenerateKey() {
+    rsa_key = EVP_RSA_gen(2048);
+}
+
+std::string RsaEncrypt() {
+    std::string plain_text = "hello world";
+    EVP_PKEY_CTX* ctx;
+    unsigned char *out, *in, *result;
+    size_t outlen, inlen, resultlen;
+    inlen = plain_text.size();
+    in = (unsigned char*)plain_text.c_str();
+    ctx = EVP_PKEY_CTX_new(rsa_key, nullptr);
+    if (!ctx) {
+        std::cout << "EVP_PKEY_CTX_new error!" << std::endl;
+        return "";
+    }
+    if (EVP_PKEY_encrypt_init(ctx) <= 0) {
+        std::cout << "EVP_PKEY_encrypt_init error!" << std::endl;
+        return "";
+    }
+    if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
+        std::cout << "EVP_PKEY_CTX_set_rsa_padding error!" << std::endl;
+        return "";
+    }
+
+    if (EVP_PKEY_encrypt(ctx, NULL, &outlen, in, inlen) <= 0) {
+        std::cout << "EVP_PKEY_encrypt error!" << std::endl;
+        return "";
+    }
+
+    out = (unsigned char*)OPENSSL_malloc(outlen);
+
+    if (!out) {
+        return "";
+    }
+
+    std::string cipher_text(outlen, '\0');
+    if (EVP_PKEY_encrypt(ctx, out, &outlen, in, inlen) <= 0) {
+        return "";
+    }
+    memcpy(cipher_text.data(), out, outlen);
+    OPENSSL_free(out);
+    std::cout << cipher_text.size() << ": " << cipher_text << std::endl;
+    return cipher_text;
+}
+
+void RsaDecrypt(std::string cipher_text) {
+    EVP_PKEY_CTX* ctx;
+    unsigned char *out, *in;
+    size_t outlen, inlen;
+    in = (unsigned char*)cipher_text.c_str();
+    inlen = cipher_text.size();
+
+    ctx = EVP_PKEY_CTX_new(rsa_key, nullptr);
+    if (!ctx) {
+        return;
+    }
+    if (EVP_PKEY_decrypt_init(ctx) <= 0) {
+        return;
+    }
+    if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
+        return;
+    }
+    if (EVP_PKEY_decrypt(ctx, NULL, &outlen, in, inlen) <= 0) {
+        return;
+    }
+    out = (unsigned char*)OPENSSL_malloc(outlen);
+
+    if (!out) {
+        return;
+    }
+    std::string plain_text(outlen, '\0');
+    if (EVP_PKEY_decrypt(ctx, out, &outlen, in, inlen) <= 0) {
+        return;
+    }
+    memcpy(plain_text.data(), out, outlen);
+    OPENSSL_free(out);
+    std::cout << "plain text: " << plain_text.size() << ": " << plain_text << std::endl;
+}
+
 int main(int argc, char* argv[]) {
+    GenerateKey();
+    RsaDecrypt(RsaEncrypt());
     std::string data = "Hello World!";
     for (int i = 0; i < data.length(); i++) {
         plain_text.push_back(data[i]);
