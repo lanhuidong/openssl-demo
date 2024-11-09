@@ -12,6 +12,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include "rsa_demo.h"
 static const unsigned int KEY_SIZE = 32;
 static const unsigned int BLOCK_SIZE = 16;
 using EVP_CIPHER_CTX_ptr = std::unique_ptr<EVP_CIPHER_CTX, decltype(&::EVP_CIPHER_CTX_free)>;
@@ -95,91 +97,30 @@ void Run() {
     std::vector<unsigned char> r_text = decrypt(key, iv, cipher_text);
 }
 
-EVP_PKEY* rsa_key;
-
-void GenerateKey() {
-    rsa_key = EVP_RSA_gen(2048);
-}
-
-std::string RsaEncrypt() {
-    std::string plain_text = "hello world";
-    EVP_PKEY_CTX* ctx;
-    unsigned char *out, *in, *result;
-    size_t outlen, inlen, resultlen;
-    inlen = plain_text.size();
-    in = (unsigned char*)plain_text.c_str();
-    ctx = EVP_PKEY_CTX_new(rsa_key, nullptr);
-    if (!ctx) {
-        std::cout << "EVP_PKEY_CTX_new error!" << std::endl;
-        return "";
-    }
-    if (EVP_PKEY_encrypt_init(ctx) <= 0) {
-        std::cout << "EVP_PKEY_encrypt_init error!" << std::endl;
-        return "";
-    }
-    if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
-        std::cout << "EVP_PKEY_CTX_set_rsa_padding error!" << std::endl;
-        return "";
-    }
-
-    if (EVP_PKEY_encrypt(ctx, NULL, &outlen, in, inlen) <= 0) {
-        std::cout << "EVP_PKEY_encrypt error!" << std::endl;
-        return "";
-    }
-
-    out = (unsigned char*)OPENSSL_malloc(outlen);
-
-    if (!out) {
-        return "";
-    }
-
-    std::string cipher_text(outlen, '\0');
-    if (EVP_PKEY_encrypt(ctx, out, &outlen, in, inlen) <= 0) {
-        return "";
-    }
-    memcpy(cipher_text.data(), out, outlen);
-    OPENSSL_free(out);
-    std::cout << cipher_text.size() << ": " << cipher_text << std::endl;
-    return cipher_text;
-}
-
-void RsaDecrypt(std::string cipher_text) {
-    EVP_PKEY_CTX* ctx;
-    unsigned char *out, *in;
-    size_t outlen, inlen;
-    in = (unsigned char*)cipher_text.c_str();
-    inlen = cipher_text.size();
-
-    ctx = EVP_PKEY_CTX_new(rsa_key, nullptr);
-    if (!ctx) {
-        return;
-    }
-    if (EVP_PKEY_decrypt_init(ctx) <= 0) {
-        return;
-    }
-    if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
-        return;
-    }
-    if (EVP_PKEY_decrypt(ctx, NULL, &outlen, in, inlen) <= 0) {
-        return;
-    }
-    out = (unsigned char*)OPENSSL_malloc(outlen);
-
-    if (!out) {
-        return;
-    }
-    std::string plain_text(outlen, '\0');
-    if (EVP_PKEY_decrypt(ctx, out, &outlen, in, inlen) <= 0) {
-        return;
-    }
-    memcpy(plain_text.data(), out, outlen);
-    OPENSSL_free(out);
-    std::cout << "plain text: " << plain_text.size() << ": " << plain_text << std::endl;
-}
-
 int main(int argc, char* argv[]) {
-    GenerateKey();
-    RsaDecrypt(RsaEncrypt());
+    constexpr size_t plain_text_len = 768;
+    unsigned char plain_text[plain_text_len] = {0};
+    unsigned char cipher_text[8192] = {0};
+    unsigned char recover_text[8192] = {0};
+    for (int i = 0; i < plain_text_len; i++) {
+        plain_text[i] = 'A' + i % 26;
+    }
+    RSA* rsa_key = CreateRsaKey();
+    int cipher_size{0};
+    RsaEncrypt(rsa_key, plain_text, plain_text_len, cipher_text, &cipher_size);
+    std::cout << "rsa encrypt success" << std::endl;
+    RsaDecrypt(rsa_key, cipher_text, cipher_size, recover_text);
+    std::cout << "recover_text: " << recover_text << std::endl;
+    RSA_free(rsa_key);
+
+    std::cout << "==============" << std::endl;
+    EVP_PKEY* rsa_key_evp = CreateRsaKeyEvp();
+    std::string cipher_text_evp = RsaEncryptEvp(rsa_key_evp, plain_text, plain_text_len);
+    std::cout << "cipher_len: " << cipher_text_evp.size() << std::endl;
+    std::string recoverred_text =
+        RsaDecryptEvp(rsa_key_evp, (unsigned char*)cipher_text_evp.c_str(), cipher_text_evp.size());
+    std::cout << "recover_text: " << recoverred_text << std::endl;
+    /*
     std::string data = "Hello World!";
     for (int i = 0; i < data.length(); i++) {
         plain_text.push_back(data[i]);
@@ -191,7 +132,7 @@ int main(int argc, char* argv[]) {
     Run();
 
     OPENSSL_cleanse(key, KEY_SIZE);
-    OPENSSL_cleanse(iv, BLOCK_SIZE);
+    OPENSSL_cleanse(iv, BLOCK_SIZE);*/
 
     return 0;
 }
