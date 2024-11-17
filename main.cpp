@@ -13,6 +13,8 @@
 #include <thread>
 #include <vector>
 
+#include "base64_demo.h"
+#include "digest_demo.h"
 #include "rsa_demo.h"
 static const unsigned int KEY_SIZE = 32;
 static const unsigned int BLOCK_SIZE = 16;
@@ -105,7 +107,19 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < plain_text_len; i++) {
         plain_text[i] = 'A' + i % 26;
     }
-    RSA* rsa_key = CreateRsaKey();
+    std::string s(plain_text_len, '\0');
+    memcpy(s.data(), plain_text, plain_text_len);
+    std::string result = Base64Encode(s);
+    std::string recover_from_base64 = Base64Decode(result);
+    std::cout << "base64 encode: " << result << std::endl;
+    std::cout << "base64 decode: " << recover_from_base64 << std::endl;
+    std::cout << "===================" << std::endl;
+    std::string md5_string = MD5("Hello world!");
+    for (unsigned char c : md5_string) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+    }
+    std::cout << std::endl << "===================" << std::endl;
+    /*RSA* rsa_key = CreateRsaKey();
     int cipher_size{0};
     RsaEncrypt(rsa_key, plain_text, plain_text_len, cipher_text, &cipher_size);
     std::cout << "rsa encrypt success" << std::endl;
