@@ -28,7 +28,7 @@ find_package(OpenSSL REQUIRED)
 
 set(binary app)
 
-add_executable(${binary} main.cpp rsa_demo.cpp base64_demo.cpp digest_demo.cpp)
+add_executable(${binary} main.cpp rsa_demo.cpp base64_demo.cpp digest_demo.cpp hmac_demo.cpp)
 
 target_link_libraries(${binary} ${OpenSSL_LIBRARIES})
 

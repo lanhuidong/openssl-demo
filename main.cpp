@@ -15,6 +15,7 @@
 
 #include "base64_demo.h"
 #include "digest_demo.h"
+#include "hmac_demo.h"
 #include "rsa_demo.h"
 static const unsigned int KEY_SIZE = 32;
 static const unsigned int BLOCK_SIZE = 16;
@@ -116,6 +117,12 @@ int main(int argc, char* argv[]) {
     std::cout << "===================" << std::endl;
     std::string md5_string = MD5("Hello world!");
     for (unsigned char c : md5_string) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+    }
+    std::cout << std::endl << "===================" << std::endl;
+    auto hmac_key = gen_hmac_key("hmac");
+    std::string hmac = hmac_it("hello world!", hmac_key);
+    for (unsigned char c : hmac) {
         std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
     }
     std::cout << std::endl << "===================" << std::endl;
